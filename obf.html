@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Obfuscator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #f9fafb; }
+        .container { max-width: 800px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+<div class="container w-full bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">
+        Simple Obfuscator
+    </h1>
+    <p class="text-sm text-gray-500 text-center mb-6">
+        ASCII Decimal + Hex + Base64
+    </p>
+
+    <div class="space-y-5">
+        <div>
+            <label for="input" class="block text-sm font-medium text-gray-700 mb-2">
+                Luaコード
+            </label>
+            <textarea id="input" rows="10"
+                class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-y font-mono text-sm"
+                placeholder='print("Hello World!")'></textarea>
+        </div>
+
+        <button id="convert"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg">
+            Obfuscate
+        </button>
+
+        <div id="result-area" class="hidden space-y-3">
+            <div>
+                <label for="output" class="block text-sm font-medium text-gray-700 mb-2">
+                    変換結果
+                </label>
+                <textarea id="output" rows="8" readonly
+                    class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm break-all"></textarea>
+            </div>
+
+            <button id="copy"
+                class="w-full bg-gray-800 hover:bg-gray-900 text-white font-medium py-3 px-4 rounded-lg">
+                結果をコピー
+            </button>
+        </div>
+
+        <p id="status" class="text-sm text-center text-gray-500"></p>
+    </div>
+</div>
+
+<script>
+const input = document.getElementById("input");
+const output = document.getElementById("output");
+const resultArea = document.getElementById("result-area");
+const status = document.getElementById("status");
+
+// UTF-8 bytes -> ASCII decimal values separated by "/"
+function toDecimal(text) {
+    return Array.from(new TextEncoder().encode(text)).join("/");
+}
+
+// ASCII decimal text -> UTF-8 bytes represented as hexadecimal
+function toHex(text) {
+    return Array.from(new TextEncoder().encode(text))
+        .map(byte => byte.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+// UTF-8-safe Base64 encoding
+function toBase64(text) {
+    const bytes = new TextEncoder().encode(text);
+    let binary = "";
+
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode(
+            ...bytes.subarray(i, i + 0x8000)
+        );
+    }
+
+    return btoa(binary);
+}
+
+// Combined transformation: Decimal -> Hex -> Base64
+function obfuscate(text) {
+    const decimal = toDecimal(text);
+    const hex = toHex(decimal);
+    return toBase64(hex);
+}
+
+document.getElementById("convert").addEventListener("click", () => {
+    const source = input.value;
+
+    if (!source.trim()) {
+        status.textContent = "コードを入力してください。";
+        resultArea.classList.add("hidden");
+        return;
+    }
+
+    try {
+        output.value = obfuscate(source);
+        resultArea.classList.remove("hidden");
+        status.textContent = "変換完了！";
+    } catch (error) {
+        status.textContent = "変換エラー: " + error.message;
+    }
+});
+
+document.getElementById("copy").addEventListener("click", async () => {
+    try {
+        await navigator.clipboard.writeText(output.value);
+        status.textContent = "コピー完了！";
+    } catch {
+        output.focus();
+        output.select();
+
+        const success = document.execCommand("copy");
+        status.textContent = success
+            ? "コピー完了！"
+            : "コピーに失敗しました。結果を手動でコピーしてください。";
+    }
+});
+</script>
+</body>
+</html>
