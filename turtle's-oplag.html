@@ -1,0 +1,214 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>turtle's Oplag Generator V2.3</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    background: #101114;
+    color: #eee;
+    font-family: Arial, sans-serif;
+    padding: 25px;
+    max-width: 750px;
+    margin: auto;
+}
+h2 { color: #8cffad; }
+.box {
+    background: #1c1e23;
+    padding: 18px;
+    border-radius: 12px;
+    margin: 15px 0;
+}
+label { display:block; margin: 12px 0 6px; }
+input, select, textarea {
+    width: 100%;
+    background: #101114;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 7px;
+    padding: 11px;
+    font-size: 15px;
+}
+textarea { resize: vertical; min-height: 90px; }
+button {
+    background: #80e9a1;
+    color: #101114;
+    border: none;
+    padding: 13px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 15px;
+}
+button:disabled { opacity: .5; }
+#status { color: #8cffad; }
+small { color: #999; }
+</style>
+</head>
+<body>
+
+<h2>Unicode Size Generator</h2>
+<p>Generate text with a specified UTF-8 file size.</p>
+
+<div class="box">
+    <label>Generation mode</label>
+    <select id="mode">
+        <option value="unicode">Random Unicode</option>
+        <option value="repeat">Repeat string</option>
+        <option value="random">Random characters</option>
+    </select>
+
+    <label>Target size (MB)</label>
+    <input id="size" type="number" value="1"
+           min="0.001" max="100" step="0.1">
+
+    <label>Text / Character pool</label>
+    <textarea id="source" placeholder="Enter text or characters...">Hello World!</textarea>
+
+    <small>
+        Random Unicode mode uses a mixture of Japanese,
+        Latin, symbols and emoji.
+    </small>
+
+    <button id="generate">Generate TXT</button>
+</div>
+
+<div class="box">
+    <h3>Result</h3>
+    <p id="status">Waiting...</p>
+    <p id="actual">Actual size: 0 MB</p>
+    <p id="count">Characters: 0</p>
+</div>
+
+<div class="box">
+    <h3>Preview</h3>
+    <textarea id="preview" readonly></textarea>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const encoder = new TextEncoder();
+
+const unicodeRanges = [
+    [0x3041, 0x3096], // Hiragana
+    [0x30A1, 0x30F6], // Katakana
+    [0x4E00, 0x9FFF], // CJK
+    [0x0041, 0x007A], // Latin
+    [0x2000, 0x206F], // Symbols
+    [0x1F300, 0x1F64F] // Emoji
+];
+
+function randomUnicode() {
+    const range = unicodeRanges[
+        Math.floor(Math.random() * unicodeRanges.length)
+    ];
+
+    return String.fromCodePoint(
+        range[0] + Math.floor(Math.random() *
+        (range[1] - range[0] + 1))
+    );
+}
+
+$('generate').onclick = async () => {
+    const mode = $('mode').value;
+    const targetMB = Number($('size').value);
+
+    if (!Number.isFinite(targetMB) ||
+        targetMB <= 0 || targetMB > 100) {
+        alert('Enter a size between 0 and 100 MB.');
+        return;
+    }
+
+    const targetBytes = Math.floor(targetMB * 1000000);
+    const source = Array.from($('source').value);
+
+    if (mode !== 'unicode' && source.length === 0) {
+        alert('Enter some text or characters.');
+        return;
+    }
+
+    $('generate').disabled = true;
+    $('status').textContent = 'Generating...';
+
+    await new Promise(resolve => setTimeout(resolve, 30));
+
+    try {
+        let chunks = [];
+        let buffer = '';
+        let bytes = 0;
+        let characters = 0;
+
+        const preview = [];
+        const chunkLimit = 65536;
+
+        while (bytes < targetBytes) {
+            let char;
+
+            if (mode === 'unicode') {
+                char = randomUnicode();
+            } else if (mode === 'repeat') {
+                char = source[characters % source.length];
+            } else {
+                char = source[
+                    Math.floor(Math.random() * source.length)
+                ];
+            }
+
+            const charBytes = encoder.encode(char).length;
+
+            if (bytes + charBytes > targetBytes) break;
+
+            buffer += char;
+            bytes += charBytes;
+            characters++;
+
+            if (preview.length < 1000) {
+                preview.push(char);
+            }
+
+            if (buffer.length >= chunkLimit) {
+                chunks.push(buffer);
+                buffer = '';
+            }
+        }
+
+        if (buffer) chunks.push(buffer);
+
+        const blob = new Blob(chunks, {
+            type: 'text/plain;charset=utf-8'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        a.href = url;
+        a.download = 'generated.txt';
+        a.click();
+
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+        $('status').textContent = 'Generation completed!';
+        $('actual').textContent =
+            'Actual size: ' + (bytes / 1000000).toFixed(6) +
+            ' MB (' + bytes.toLocaleString() + ' bytes)';
+
+        $('count').textContent =
+            'Characters: ' + characters.toLocaleString();
+
+        $('preview').value = preview.join('');
+
+    } catch (error) {
+        $('status').textContent = 'Error: ' + error.message;
+    }
+
+    $('generate').disabled = false;
+};
+</script>
+
+</body>
+</html>
