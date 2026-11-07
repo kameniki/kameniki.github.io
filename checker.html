@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roblox Username Generator</title>
+<style>
+* { box-sizing:border-box }
+body {
+  margin:0; padding:24px 16px;
+  background:#101114; color:#eee;
+  font-family:Arial,sans-serif;
+}
+main {
+  max-width:480px; margin:35px auto;
+  background:#191b20; border:1px solid #30333a;
+  border-radius:16px; padding:24px;
+}
+h2 { margin-top:0 }
+.sub { color:#888; font-size:13px }
+.length {
+  display:flex; justify-content:space-between;
+  margin:25px 0 10px;
+}
+input[type=range] { width:100%; accent-color:#36c878 }
+.options { display:flex; gap:10px; margin:20px 0 }
+.option {
+  flex:1; padding:13px;
+  border:1px solid #383b42;
+  border-radius:9px; text-align:center;
+}
+.option input { accent-color:#36c878 }
+button {
+  border:0; border-radius:9px; padding:13px;
+  background:#30343b; color:white;
+  font-size:14px; cursor:pointer;
+}
+button:disabled { opacity:.5; cursor:wait }
+.primary {
+  width:100%; background:#238d53;
+  font-weight:bold; margin-top:12px;
+}
+.copy {
+  width:100%; background:#303b34;
+  margin-top:10px;
+}
+.result {
+  background:#111317; border:1px solid #343840;
+  border-radius:10px; padding:17px;
+  margin-top:22px;
+}
+.username {
+  font-family:monospace; font-size:25px;
+  overflow-wrap:anywhere; text-align:center;
+  padding:15px 0;
+}
+.status { font-size:13px; color:#aaa; text-align:center }
+.good { color:#54db8c }
+.bad { color:#ff7777 }
+</style>
+</head>
+<body>
+<main>
+  <h2>Roblox Username Generator</h2>
+  <div class="sub">Random username generator & availability checker</div>
+
+  <div class="length">
+    <b>Username Length</b>
+    <b id="lengthValue">12</b>
+  </div>
+  <input type="range" id="length" min="6" max="20" value="12">
+
+  <div class="sub" style="margin-top:25px">Character Settings</div>
+  <div class="options">
+    <label class="option">
+      <input type="checkbox" id="upper" checked>
+      <b>I</b>
+    </label>
+    <label class="option">
+      <input type="checkbox" id="lower" checked>
+      <b>l</b>
+    </label>
+    <label class="option">
+      <input type="checkbox" id="one" checked>
+      <b>1</b>
+    </label>
+  </div>
+
+  <button class="primary" id="generate">
+    Generate & Check
+  </button>
+
+  <div class="result">
+    <div class="sub">GENERATED USERNAME</div>
+    <div class="username" id="username">Waiting...</div>
+    <div class="status" id="status">Ready</div>
+    <button class="copy" id="copy" disabled>Copy Username</button>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const length = $('length');
+const username = $('username');
+const status = $('status');
+const generate = $('generate');
+const copy = $('copy');
+
+length.oninput = () => {
+  $('lengthValue').textContent = length.value;
+};
+
+function randomUsername(size, chars) {
+  const values = new Uint32Array(size);
+  const limit = Math.floor(4294967296 / chars.length) * chars.length;
+  let result = '';
+
+  while (result.length < size) {
+    crypto.getRandomValues(values);
+
+    for (const n of values) {
+      if (n >= limit) continue;
+      result += chars[n % chars.length];
+      if (result.length === size) break;
+    }
+  }
+  return result;
+}
+
+async function checkUsername(name) {
+  const response = await fetch(
+    'https://users.roblox.com/v1/usernames/users',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        usernames: [name],
+        excludeBannedUsers: false
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('API Error: HTTP ' + response.status);
+  }
+
+  const data = await response.json();
+  return data.data.some(user =>
+    user.requestedUsername.toLowerCase() === name.toLowerCase()
+  );
+}
+
+generate.onclick = async () => {
+  let chars = '';
+
+  if ($('upper').checked) chars += 'I';
+  if ($('lower').checked) chars += 'l';
+  if ($('one').checked) chars += '1';
+
+  if (!chars) {
+    status.textContent = 'Select at least one character.';
+    status.className = 'status bad';
+    return;
+  }
+
+  const name = randomUsername(Number(length.value), chars);
+
+  username.textContent = name;
+  status.textContent = 'Checking Roblox API...';
+  status.className = 'status';
+  copy.disabled = true;
+  generate.disabled = true;
+
+  try {
+    const taken = await checkUsername(name);
+
+    if (taken) {
+      status.textContent = 'TAKEN - Account found';
+      status.className = 'status bad';
+    } else {
+      status.textContent = 'NOT FOUND - Available candidate';
+      status.className = 'status good';
+      copy.disabled = false;
+    }
+  } catch (error) {
+    status.textContent = 'API ERROR - ' + error.message;
+    status.className = 'status bad';
+  } finally {
+    generate.disabled = false;
+  }
+};
+
+copy.onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(username.textContent);
+    status.textContent = 'Copied to clipboard!';
+    status.className = 'status good';
+  } catch {
+    status.textContent = 'Clipboard unavailable. Use manual copy.';
+    status.className = 'status bad';
+  }
+};
+</script>
+</body>
+</html>
