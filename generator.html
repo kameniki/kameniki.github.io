@@ -1,0 +1,513 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Username generator that is difficult to report</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:25px 15px;
+ background:#101114;color:#eee;
+ font-family:Arial,sans-serif
+}
+main{
+ max-width:560px;margin:20px auto;
+ background:#191b20;border:1px solid #30333a;
+ border-radius:16px;padding:22px
+}
+h2{margin:0 0 7px}
+.sub{color:#888;font-size:13px}
+.section{margin-top:24px}
+.flex{display:flex;justify-content:space-between}
+input[type=range]{width:100%;accent-color:#35c879}
+.options{display:flex;gap:10px;margin-top:12px}
+.option{
+ flex:1;padding:13px;background:#202329;
+ border:1px solid #393d45;border-radius:9px;
+ text-align:center
+}
+input[type=number]{
+ width:85px;padding:9px;background:#111317;
+ color:white;border:1px solid #444;border-radius:7px
+}
+button{
+ padding:12px;border:0;border-radius:8px;
+ background:#30343b;color:white;cursor:pointer;
+ font-size:13px
+}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{
+ width:100%;margin-top:22px;
+ background:#238d53;font-weight:bold
+}
+.result{
+ margin-top:18px;padding:15px;
+ background:#111317;border:1px solid #343840;
+ border-radius:10px
+}
+.username{
+ font:25px monospace;text-align:center;
+ overflow-wrap:anywhere;padding:15px 0
+}
+.status{text-align:center;font-size:13px;color:#aaa}
+.good{color:#55dc8e}
+.bad{color:#ff7777}
+.copy{width:100%;margin-top:12px;background:#263d30}
+.item{
+ margin-top:12px;padding:14px;
+ background:#22252b;border-radius:10px
+}
+.profile{display:flex;align-items:center;gap:13px}
+.avatar{
+ width:68px;height:68px;border-radius:10px;
+ background:#333;object-fit:cover
+}
+.details{
+ font-size:13px;color:#aaa;line-height:1.8;
+ overflow-wrap:anywhere
+}
+.item code{font-size:17px;overflow-wrap:anywhere}
+.item button{margin-top:10px}
+.tag{
+ display:inline-block;font-size:11px;
+ padding:4px 8px;border-radius:5px;
+ background:#30343b;margin-top:5px
+}
+.tag.taken{color:#ff7777}
+.tag.free{color:#55dc8e}
+#results{margin-top:20px}
+.footer{
+ margin-top:20px;color:#777;
+ font-size:11px;line-height:1.6
+}
+</style>
+</head>
+<body>
+<main>
+<h2>Roblox Username Scanner</h2>
+<div class="sub">I / l / 1 Username Generator</div>
+
+<div class="section">
+ <div class="flex">
+  <b>Username Length</b>
+  <b id="lengthValue">12</b>
+ </div>
+ <input id="length" type="range" min="6" max="20" value="12">
+</div>
+
+<div class="section">
+ <b>Character Settings</b>
+ <div class="options">
+  <label class="option">
+   <input id="upper" type="checkbox" checked> I
+  </label>
+  <label class="option">
+   <input id="lower" type="checkbox" checked> l
+  </label>
+  <label class="option">
+   <input id="one" type="checkbox" checked> 1
+  </label>
+ </div>
+</div>
+
+<div class="section">
+ <b>Generate Count</b>
+ <div style="margin-top:10px">
+  <input id="count" type="number" min="1" max="50" value="5">
+  <span class="sub">1〜50 candidates</span>
+ </div>
+</div>
+
+<button class="primary" id="generate">
+ Generate & Scan
+</button>
+
+<div class="result">
+ <div class="sub">LATEST USERNAME</div>
+ <div class="username" id="username">Waiting...</div>
+ <div class="status" id="status">Ready</div>
+ <button class="copy" id="copy" disabled>
+  Copy Available Username
+ </button>
+</div>
+
+<div id="results"></div>
+
+<div class="footer">
+ API: Roblox Users API / Thumbnails API<br>
+ Proxy: Cloudflare Workers<br>
+ NOT FOUND means no exact account match was returned.
+ It does not guarantee that Roblox will allow registration.
+</div>
+</main>
+
+<script>
+// ======================================
+// Cloudflare Worker URL
+// ======================================
+
+const WORKER_URL =
+'https://roblox-api-proxy.yk8c8kpv49.workers.dev';
+
+// ======================================
+// API Client
+// ======================================
+
+async function api(url, options = {}) {
+ const target = new URL(url);
+
+ const allowedHosts = [
+  'users.roblox.com',
+  'thumbnails.roblox.com'
+ ];
+
+ if (!allowedHosts.includes(target.hostname)) {
+  throw new Error('Invalid API host');
+ }
+
+ const proxyUrl =
+  WORKER_URL.replace(/\/$/, '') +
+  target.pathname +
+  target.search;
+
+ const response = await fetch(proxyUrl, {
+  ...options,
+  headers: {
+   'Content-Type': 'application/json',
+   ...options.headers
+  }
+ });
+
+ if (!response.ok) {
+  throw new Error('HTTP ' + response.status);
+ }
+
+ return response.json();
+}
+
+// ======================================
+// Random Username Generator
+// ======================================
+
+function randomName(size, chars) {
+ const limit =
+  Math.floor(4294967296 / chars.length) * chars.length;
+
+ let result = '';
+ const values = new Uint32Array(64);
+
+ while (result.length < size) {
+  crypto.getRandomValues(values);
+
+  for (const n of values) {
+   if (n >= limit) continue;
+
+   result += chars[n % chars.length];
+
+   if (result.length >= size) break;
+  }
+ }
+
+ return result;
+}
+
+// ======================================
+// Roblox Username Lookup
+// ======================================
+
+async function lookup(name) {
+ const data = await api(
+  'https://users.roblox.com/v1/usernames/users',
+  {
+   method: 'POST',
+   body: JSON.stringify({
+    usernames: [name],
+    excludeBannedUsers: false
+   })
+  }
+ );
+
+ if (!Array.isArray(data.data)) {
+  throw new Error('Invalid username response');
+ }
+
+ return data.data.find(user =>
+  typeof user.requestedUsername === 'string' &&
+  user.requestedUsername.toLowerCase() === name.toLowerCase()
+ ) || null;
+}
+
+// ======================================
+// User Profile
+// ======================================
+
+async function getProfile(id) {
+ return api(
+  'https://users.roblox.com/v1/users/' +
+  encodeURIComponent(id)
+ );
+}
+
+// ======================================
+// Avatar Thumbnail
+// ======================================
+
+async function getAvatar(id) {
+ const url = new URL(
+  'https://thumbnails.roblox.com/v1/users/avatar-headshot'
+ );
+
+ url.searchParams.set('userIds', id);
+ url.searchParams.set('size', '150x150');
+ url.searchParams.set('format', 'Png');
+ url.searchParams.set('isCircular', 'false');
+
+ const data = await api(url.toString());
+
+ return data.data?.[0]?.imageUrl || null;
+}
+
+// ======================================
+// UI Helpers
+// ======================================
+
+const $ = id => document.getElementById(id);
+
+let currentName = null;
+
+function addText(parent, tag, text, className) {
+ const el = document.createElement(tag);
+ el.textContent = text;
+
+ if (className) el.className = className;
+
+ parent.appendChild(el);
+ return el;
+}
+
+async function copyText(text, button, originalText) {
+ try {
+  await navigator.clipboard.writeText(text);
+  button.textContent = 'Copied!';
+
+  setTimeout(() => {
+   button.textContent = originalText;
+  }, 1300);
+
+ } catch {
+  button.textContent = 'Copy failed';
+
+  setTimeout(() => {
+   button.textContent = originalText;
+  }, 1500);
+ }
+}
+
+// ======================================
+// TAKEN Result
+// ======================================
+
+function addTaken(name, user) {
+ const item = document.createElement('div');
+ item.className = 'item';
+
+ const profile = document.createElement('div');
+ profile.className = 'profile';
+
+ const avatar = document.createElement('img');
+ avatar.className = 'avatar';
+ avatar.alt = 'Roblox Avatar';
+ avatar.src =
+  'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+
+ const info = document.createElement('div');
+ info.style.minWidth = '0';
+
+ addText(info, 'code', name);
+ addText(info, 'div', 'TAKEN', 'tag taken');
+ addText(info, 'div', 'User ID: ' + user.id, 'details');
+
+ profile.append(avatar, info);
+ item.appendChild(profile);
+
+ const details = document.createElement('div');
+ details.className = 'details';
+ details.style.marginTop = '12px';
+ details.textContent = 'Loading profile...';
+
+ item.appendChild(details);
+ $('results').appendChild(item);
+
+ return { avatar, details, user };
+}
+
+async function enrich(card) {
+ try {
+  const [profile, avatar] = await Promise.all([
+   getProfile(card.user.id),
+   getAvatar(card.user.id)
+  ]);
+
+  card.details.textContent =
+   'Username: ' + profile.name +
+   '\nDisplay Name: ' + profile.displayName +
+   '\nUser ID: ' + profile.id +
+   '\nCreated: ' +
+   new Date(profile.created).toLocaleString('ja-JP');
+
+  card.details.style.whiteSpace = 'pre-line';
+
+  if (avatar) {
+   card.avatar.src = avatar;
+  }
+
+ } catch (error) {
+  card.details.textContent =
+   'Profile error: ' + error.message;
+ }
+}
+
+// ======================================
+// NOT FOUND Result
+// ======================================
+
+function addAvailable(name) {
+ const item = document.createElement('div');
+ item.className = 'item';
+
+ addText(item, 'code', name);
+ addText(item, 'div', 'NOT FOUND', 'tag free');
+
+ const button = document.createElement('button');
+ button.textContent = 'Copy Username';
+
+ button.onclick = () => {
+  copyText(name, button, 'Copy Username');
+ };
+
+ item.appendChild(button);
+ $('results').appendChild(item);
+}
+
+// ======================================
+// API ERROR Result
+// ======================================
+
+function addError(name, error) {
+ const item = document.createElement('div');
+ item.className = 'item';
+
+ addText(item, 'code', name);
+ addText(
+  item,
+  'div',
+  'API ERROR: ' + error.message,
+  'status bad'
+ );
+
+ $('results').appendChild(item);
+}
+
+// ======================================
+// Main Generator
+// ======================================
+
+$('length').oninput = () => {
+ $('lengthValue').textContent = $('length').value;
+};
+
+$('generate').onclick = async () => {
+ let chars = '';
+
+ if ($('upper').checked) chars += 'I';
+ if ($('lower').checked) chars += 'l';
+ if ($('one').checked) chars += '1';
+
+ if (!chars) {
+  alert('Select at least one character!');
+  return;
+ }
+
+ const size = Number($('length').value);
+
+ const count = Math.max(
+  1,
+  Math.min(50, Number($('count').value) || 1)
+ );
+
+ $('generate').disabled = true;
+ $('copy').disabled = true;
+ $('results').replaceChildren();
+
+ currentName = null;
+
+ let taken = 0;
+ let notFound = 0;
+ let errors = 0;
+
+ for (let i = 0; i < count; i++) {
+  const name = randomName(size, chars);
+
+  $('username').textContent = name;
+  $('status').textContent =
+   `Checking ${i + 1} / ${count}...`;
+
+  try {
+   const user = await lookup(name);
+
+   if (user) {
+    taken++;
+
+    const card = addTaken(name, user);
+    await enrich(card);
+
+   } else {
+    notFound++;
+
+    addAvailable(name);
+
+    if (!currentName) {
+     currentName = name;
+     $('copy').disabled = false;
+    }
+   }
+
+  } catch (error) {
+   errors++;
+   addError(name, error);
+  }
+ }
+
+ if (currentName) {
+  $('username').textContent = currentName;
+ } else {
+  $('username').textContent = 'No candidate';
+ }
+
+ $('status').textContent =
+  `TAKEN: ${taken} | NOT FOUND: ${notFound} | ERROR: ${errors}`;
+
+ $('status').className =
+  'status ' + (errors ? 'bad' : 'good');
+
+ $('generate').disabled = false;
+};
+
+// ======================================
+// Main Copy Button
+// ======================================
+
+$('copy').onclick = () => {
+ if (!currentName) return;
+
+ copyText(
+  currentName,
+  $('copy'),
+  'Copy Available Username'
+ );
+};
+</script>
+</body>
+</html>
