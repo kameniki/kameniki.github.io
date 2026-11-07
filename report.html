@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roblox Username Generator</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:25px 15px;
+ background:#101114;color:#eee;
+ font-family:Arial,sans-serif
+}
+main{
+ max-width:520px;margin:20px auto;
+ background:#191b20;border:1px solid #30333a;
+ border-radius:16px;padding:22px
+}
+h2{margin:0 0 8px}
+.sub{color:#888;font-size:13px}
+.section{margin-top:25px}
+.length{
+ display:flex;justify-content:space-between;
+ margin-bottom:12px
+}
+input[type=range]{
+ width:100%;accent-color:#35c879
+}
+.options{display:flex;gap:10px;margin-top:12px}
+.option{
+ flex:1;padding:14px;
+ border:1px solid #393d45;
+ border-radius:9px;text-align:center;
+ background:#202329
+}
+.option input{accent-color:#35c879}
+input[type=number]{
+ width:80px;padding:8px;
+ background:#111317;color:white;
+ border:1px solid #444;border-radius:7px
+}
+button{
+ padding:12px;border:0;border-radius:8px;
+ background:#30343b;color:white;
+ cursor:pointer;font-size:14px
+}
+.primary{
+ width:100%;margin-top:22px;
+ background:#238d53;font-weight:bold
+}
+.result{
+ margin-top:22px;padding:17px;
+ background:#111317;border:1px solid #343840;
+ border-radius:10px
+}
+.username{
+ font-family:monospace;font-size:25px;
+ overflow-wrap:anywhere;text-align:center;
+ padding:17px 0
+}
+.copy{
+ width:100%;margin-top:12px;
+ background:#263d30
+}
+#results{margin-top:20px}
+.item{
+ padding:12px;margin-top:9px;
+ background:#22252b;border-radius:8px;
+ display:flex;align-items:center;
+ justify-content:space-between;gap:10px
+}
+.item code{overflow-wrap:anywhere}
+.item button{padding:8px 12px}
+</style>
+</head>
+<body>
+<main>
+ <h2>Roblox Username Generator</h2>
+ <div class="sub">I / l / 1 Random Generator</div>
+
+ <div class="section">
+  <div class="length">
+   <b>Username Length</b>
+   <b id="lengthValue">12</b>
+  </div>
+  <input id="length" type="range"
+   min="6" max="20" value="12">
+ </div>
+
+ <div class="section">
+  <b>Character Settings</b>
+  <div class="options">
+   <label class="option">
+    <input type="checkbox" id="upper" checked> I
+   </label>
+   <label class="option">
+    <input type="checkbox" id="lower" checked> l
+   </label>
+   <label class="option">
+    <input type="checkbox" id="one" checked> 1
+   </label>
+  </div>
+ </div>
+
+ <div class="section">
+  <b>Generate Count</b>
+  <div style="margin-top:10px">
+   <input id="count" type="number"
+    min="1" max="50" value="5">
+   <span class="sub">1〜50個</span>
+  </div>
+ </div>
+
+ <button class="primary" id="generate">
+  Generate
+ </button>
+
+ <div class="result">
+  <div class="sub">GENERATED USERNAME</div>
+  <div class="username" id="username">Waiting...</div>
+  <button class="copy" id="copy">
+   Copy Username
+  </button>
+ </div>
+
+ <div id="results"></div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+$('length').oninput = () => {
+ $('lengthValue').textContent = $('length').value;
+};
+
+function randomName(size, chars) {
+ const limit = Math.floor(4294967296 / chars.length)
+  * chars.length;
+ let result = '';
+ const values = new Uint32Array(64);
+
+ while(result.length < size) {
+  crypto.getRandomValues(values);
+
+  for(const n of values) {
+   if(n >= limit) continue;
+   result += chars[n % chars.length];
+   if(result.length >= size) break;
+  }
+ }
+ return result;
+}
+
+let currentName = '';
+
+async function copyText(text, button) {
+ try {
+  await navigator.clipboard.writeText(text);
+  button.textContent = 'Copied!';
+  setTimeout(() => button.textContent = 'Copy', 1200);
+ } catch {
+  button.textContent = 'Copy failed';
+ }
+}
+
+$('generate').onclick = () => {
+ let chars = '';
+
+ if($('upper').checked) chars += 'I';
+ if($('lower').checked) chars += 'l';
+ if($('one').checked) chars += '1';
+
+ if(!chars) {
+  alert('Select at least one character!');
+  return;
+ }
+
+ const size = Number($('length').value);
+ const count = Math.max(1, Math.min(50,
+  Number($('count').value) || 1
+ ));
+
+ const results = $('results');
+ results.replaceChildren();
+
+ const names = [];
+
+ for(let i = 0; i < count; i++) {
+  names.push(randomName(size, chars));
+ }
+
+ currentName = names[0];
+ $('username').textContent = currentName;
+
+ for(const name of names) {
+  const item = document.createElement('div');
+  item.className = 'item';
+
+  const code = document.createElement('code');
+  code.textContent = name;
+
+  const button = document.createElement('button');
+  button.textContent = 'Copy';
+  button.onclick = () => copyText(name, button);
+
+  item.append(code, button);
+  results.appendChild(item);
+ }
+};
+
+$('copy').onclick = () => {
+ if(currentName) {
+  copyText(currentName, $('copy'));
+ }
+};
+</script>
+</body>
+</html>
