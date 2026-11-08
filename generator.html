@@ -4,11 +4,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Username generator that is difficult to report</title>
+<title>Roblox Username Scanner</title>
 <style>
 *{box-sizing:border-box}
 body{
- margin:0;padding:25px 15px;
+ margin:0;padding:24px 15px;
  background:#101114;color:#eee;
  font-family:Arial,sans-serif
 }
@@ -22,25 +22,31 @@ h2{margin:0 0 7px}
 .section{margin-top:24px}
 .flex{display:flex;justify-content:space-between}
 input[type=range]{width:100%;accent-color:#35c879}
+input[type=text],input[type=number]{
+ padding:11px;background:#111317;color:white;
+ border:1px solid #444;border-radius:8px;
+ width:100%;outline:none
+}
+input:focus{border-color:#35c879}
 .options{display:flex;gap:10px;margin-top:12px}
 .option{
  flex:1;padding:13px;background:#202329;
  border:1px solid #393d45;border-radius:9px;
  text-align:center
 }
-input[type=number]{
- width:85px;padding:9px;background:#111317;
- color:white;border:1px solid #444;border-radius:7px
-}
 button{
  padding:12px;border:0;border-radius:8px;
- background:#30343b;color:white;cursor:pointer;
- font-size:13px
+ background:#30343b;color:white;
+ cursor:pointer;font-size:13px
 }
 button:disabled{opacity:.4;cursor:not-allowed}
 .primary{
- width:100%;margin-top:22px;
+ width:100%;margin-top:15px;
  background:#238d53;font-weight:bold
+}
+.secondary{
+ width:100%;margin-top:10px;
+ background:#343b49
 }
 .result{
  margin-top:18px;padding:15px;
@@ -61,8 +67,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
 }
 .profile{display:flex;align-items:center;gap:13px}
 .avatar{
- width:68px;height:68px;border-radius:10px;
- background:#333;object-fit:cover
+ width:72px;height:72px;border-radius:10px;
+ background:#333;object-fit:cover;flex-shrink:0
 }
 .details{
  font-size:13px;color:#aaa;line-height:1.8;
@@ -75,8 +81,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
  padding:4px 8px;border-radius:5px;
  background:#30343b;margin-top:5px
 }
-.tag.taken{color:#ff7777}
-.tag.free{color:#55dc8e}
+.taken{color:#ff7777}
+.free{color:#55dc8e}
 #results{margin-top:20px}
 .footer{
  margin-top:20px;color:#777;
@@ -87,150 +93,144 @@ button:disabled{opacity:.4;cursor:not-allowed}
 <body>
 <main>
 <h2>Roblox Username Scanner</h2>
-<div class="sub">I / l / 1 Username Generator</div>
+<div class="sub">Username Generator & Profile Lookup</div>
 
+<!-- Manual username search -->
 <div class="section">
- <div class="flex">
+ <b>Manual Username Search</b>
+ <input
+  type="text"
+  id="manual"
+  maxlength="20"
+  minlength="3"
+  placeholder="Enter Roblox username"
+  style="margin-top:10px"
+ >
+ <button class="primary" id="manualScan">
+  Search Username
+ </button>
+</div>
+
+<!-- Random generator -->
+<div class="section">
+ <b>Random Generator</b>
+
+ <div class="flex" style="margin-top:15px">
   <b>Username Length</b>
   <b id="lengthValue">12</b>
  </div>
- <input id="length" type="range" min="6" max="20" value="12">
-</div>
 
-<div class="section">
- <b>Character Settings</b>
- <div class="options">
-  <label class="option">
-   <input id="upper" type="checkbox" checked> I
-  </label>
-  <label class="option">
-   <input id="lower" type="checkbox" checked> l
-  </label>
-  <label class="option">
-   <input id="one" type="checkbox" checked> 1
-  </label>
+ <input
+  id="length"
+  type="range"
+  min="6"
+  max="20"
+  value="12"
+ >
+
+ <div class="section">
+  <b>Character Settings</b>
+
+  <div class="options">
+   <label class="option">
+    <input id="upper" type="checkbox" checked> I
+   </label>
+
+   <label class="option">
+    <input id="lower" type="checkbox" checked> l
+   </label>
+
+   <label class="option">
+    <input id="one" type="checkbox" checked> 1
+   </label>
+  </div>
  </div>
-</div>
 
-<div class="section">
- <b>Generate Count</b>
- <div style="margin-top:10px">
-  <input id="count" type="number" min="1" max="50" value="5">
+ <div class="section">
+  <b>Generate Count</b>
+  <input
+   id="count"
+   type="number"
+   min="1"
+   max="50"
+   value="5"
+   style="width:100px;margin-top:10px"
+  >
   <span class="sub">1〜50 candidates</span>
  </div>
+
+ <button class="primary" id="generate">
+  Generate & Scan
+ </button>
 </div>
 
-<button class="primary" id="generate">
- Generate & Scan
-</button>
-
+<!-- Latest result -->
 <div class="result">
  <div class="sub">LATEST USERNAME</div>
  <div class="username" id="username">Waiting...</div>
  <div class="status" id="status">Ready</div>
+
  <button class="copy" id="copy" disabled>
-  Copy Available Username
+  Copy Username
  </button>
 </div>
 
 <div id="results"></div>
 
 <div class="footer">
- API: Roblox Users API / Thumbnails API<br>
- Proxy: Cloudflare Workers<br>
- NOT FOUND means no exact account match was returned.
- It does not guarantee that Roblox will allow registration.
+ Roblox Users API / Avatar Thumbnail API<br>
+ Cloudflare Workers Proxy<br>
+ NOT FOUND means no exact match was returned.
+ It does not guarantee registration availability.
 </div>
 </main>
 
 <script>
-// ======================================
-// Cloudflare Worker URL
-// ======================================
+// =====================================
+// Cloudflare Worker
+// =====================================
 
 const WORKER_URL =
 'https://roblox-api-proxy.yk8c8kpv49.workers.dev';
 
-// ======================================
-// API Client
-// ======================================
+// =====================================
+// API CLIENT
+// =====================================
 
-async function api(url, options = {}) {
- const target = new URL(url);
-
- const allowedHosts = [
-  'users.roblox.com',
-  'thumbnails.roblox.com'
- ];
-
- if (!allowedHosts.includes(target.hostname)) {
-  throw new Error('Invalid API host');
- }
-
- const proxyUrl =
-  WORKER_URL.replace(/\/$/, '') +
-  target.pathname +
-  target.search;
-
- const response = await fetch(proxyUrl, {
-  ...options,
-  headers: {
-   'Content-Type': 'application/json',
-   ...options.headers
+async function api(path, options = {}) {
+ const response = await fetch(
+  WORKER_URL + path,
+  {
+   ...options,
+   headers:{
+    'Content-Type':'application/json',
+    ...options.headers
+   }
   }
- });
+ );
 
- if (!response.ok) {
-  throw new Error('HTTP ' + response.status);
+ if(!response.ok) {
+  throw Error('HTTP ' + response.status);
  }
 
  return response.json();
 }
 
-// ======================================
-// Random Username Generator
-// ======================================
-
-function randomName(size, chars) {
- const limit =
-  Math.floor(4294967296 / chars.length) * chars.length;
-
- let result = '';
- const values = new Uint32Array(64);
-
- while (result.length < size) {
-  crypto.getRandomValues(values);
-
-  for (const n of values) {
-   if (n >= limit) continue;
-
-   result += chars[n % chars.length];
-
-   if (result.length >= size) break;
-  }
- }
-
- return result;
-}
-
-// ======================================
-// Roblox Username Lookup
-// ======================================
+// =====================================
+// Username lookup
+// =====================================
 
 async function lookup(name) {
- const data = await api(
-  'https://users.roblox.com/v1/usernames/users',
-  {
-   method: 'POST',
-   body: JSON.stringify({
-    usernames: [name],
-    excludeBannedUsers: false
-   })
-  }
- );
+ const data = await api('/v1/usernames/users',{
+  method:'POST',
+  body:JSON.stringify({
+   usernames:[name],
+   excludeBannedUsers:false
+  })
+ });
 
- if (!Array.isArray(data.data)) {
-  throw new Error('Invalid username response');
+ if(!Array.isArray(data.data)) {
+  throw Error('Invalid API response');
  }
 
  return data.data.find(user =>
@@ -239,75 +239,87 @@ async function lookup(name) {
  ) || null;
 }
 
-// ======================================
-// User Profile
-// ======================================
+// =====================================
+// Profile
+// =====================================
 
 async function getProfile(id) {
- return api(
-  'https://users.roblox.com/v1/users/' +
-  encodeURIComponent(id)
- );
+ return api('/v1/users/' + encodeURIComponent(id));
 }
 
-// ======================================
-// Avatar Thumbnail
-// ======================================
+// =====================================
+// Avatar image
+// =====================================
 
-async function getAvatar(id) {
- const url = new URL(
-  'https://thumbnails.roblox.com/v1/users/avatar-headshot'
- );
-
- url.searchParams.set('userIds', id);
- url.searchParams.set('size', '150x150');
- url.searchParams.set('format', 'Png');
- url.searchParams.set('isCircular', 'false');
-
- const data = await api(url.toString());
-
- return data.data?.[0]?.imageUrl || null;
+function getAvatarURL(id) {
+ return WORKER_URL + '/avatar-image/' +
+  encodeURIComponent(id);
 }
 
-// ======================================
-// UI Helpers
-// ======================================
+// =====================================
+// Random username
+// =====================================
+
+function randomName(size, chars) {
+ const limit =
+  Math.floor(4294967296 / chars.length) * chars.length;
+
+ let result = '';
+ const values = new Uint32Array(64);
+
+ while(result.length < size) {
+  crypto.getRandomValues(values);
+
+  for(const n of values) {
+   if(n >= limit) continue;
+
+   result += chars[n % chars.length];
+
+   if(result.length >= size) break;
+  }
+ }
+
+ return result;
+}
+
+// =====================================
+// UI
+// =====================================
 
 const $ = id => document.getElementById(id);
 
 let currentName = null;
 
-function addText(parent, tag, text, className) {
- const el = document.createElement(tag);
- el.textContent = text;
+$('length').oninput = () => {
+ $('lengthValue').textContent = $('length').value;
+};
 
- if (className) el.className = className;
+function addText(parent, tag, value, cls) {
+ const el = document.createElement(tag);
+ el.textContent = value;
+
+ if(cls) el.className = cls;
 
  parent.appendChild(el);
  return el;
 }
 
-async function copyText(text, button, originalText) {
+async function copyText(text, button, original) {
  try {
   await navigator.clipboard.writeText(text);
   button.textContent = 'Copied!';
 
   setTimeout(() => {
-   button.textContent = originalText;
-  }, 1300);
-
+   button.textContent = original;
+  },1200);
  } catch {
   button.textContent = 'Copy failed';
-
-  setTimeout(() => {
-   button.textContent = originalText;
-  }, 1500);
  }
 }
 
-// ======================================
-// TAKEN Result
-// ======================================
+// =====================================
+// TAKEN CARD
+// =====================================
 
 function addTaken(name, user) {
  const item = document.createElement('div');
@@ -318,194 +330,259 @@ function addTaken(name, user) {
 
  const avatar = document.createElement('img');
  avatar.className = 'avatar';
- avatar.alt = 'Roblox Avatar';
- avatar.src =
-  'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+ avatar.alt = 'Roblox avatar';
+ avatar.loading = 'lazy';
+ avatar.src = getAvatarURL(user.id);
+
+ avatar.onerror = () => {
+  avatar.onerror = null;
+  avatar.alt = 'Avatar unavailable';
+  avatar.src =
+   'data:image/svg+xml,' +
+   encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72"><rect width="100%" height="100%" fill="#333"/><text x="50%" y="55%" text-anchor="middle" fill="#aaa" font-size="11">No image</text></svg>'
+   );
+ };
 
  const info = document.createElement('div');
  info.style.minWidth = '0';
 
- addText(info, 'code', name);
- addText(info, 'div', 'TAKEN', 'tag taken');
- addText(info, 'div', 'User ID: ' + user.id, 'details');
+ addText(info,'code',name);
+ addText(info,'div','TAKEN','tag taken');
+ addText(info,'div','User ID: '+user.id,'details');
 
- profile.append(avatar, info);
+ profile.append(avatar,info);
  item.appendChild(profile);
 
- const details = document.createElement('div');
- details.className = 'details';
+ const details = addText(
+  item,'div','Loading profile...','details'
+ );
  details.style.marginTop = '12px';
- details.textContent = 'Loading profile...';
 
- item.appendChild(details);
  $('results').appendChild(item);
 
- return { avatar, details, user };
+ return {details,user};
 }
+
+// =====================================
+// PROFILE DETAILS
+// =====================================
 
 async function enrich(card) {
  try {
-  const [profile, avatar] = await Promise.all([
-   getProfile(card.user.id),
-   getAvatar(card.user.id)
-  ]);
+  const profile = await getProfile(card.user.id);
 
   card.details.textContent =
-   'Username: ' + profile.name +
-   '\nDisplay Name: ' + profile.displayName +
-   '\nUser ID: ' + profile.id +
-   '\nCreated: ' +
+   'Username: '+profile.name+
+   '\nDisplay Name: '+profile.displayName+
+   '\nUser ID: '+profile.id+
+   '\nCreated: '+
    new Date(profile.created).toLocaleString('ja-JP');
 
   card.details.style.whiteSpace = 'pre-line';
 
-  if (avatar) {
-   card.avatar.src = avatar;
-  }
-
- } catch (error) {
+ } catch(error) {
   card.details.textContent =
-   'Profile error: ' + error.message;
+   'Profile error: '+error.message;
  }
 }
 
-// ======================================
-// NOT FOUND Result
-// ======================================
+// =====================================
+// NOT FOUND CARD
+// =====================================
 
 function addAvailable(name) {
  const item = document.createElement('div');
  item.className = 'item';
 
- addText(item, 'code', name);
- addText(item, 'div', 'NOT FOUND', 'tag free');
+ addText(item,'code',name);
+ addText(item,'div','NOT FOUND','tag free');
 
  const button = document.createElement('button');
  button.textContent = 'Copy Username';
 
  button.onclick = () => {
-  copyText(name, button, 'Copy Username');
+  copyText(name,button,'Copy Username');
  };
 
  item.appendChild(button);
  $('results').appendChild(item);
 }
 
-// ======================================
-// API ERROR Result
-// ======================================
+// =====================================
+// ERROR CARD
+// =====================================
 
-function addError(name, error) {
+function addError(name,error) {
  const item = document.createElement('div');
  item.className = 'item';
 
- addText(item, 'code', name);
+ addText(item,'code',name);
  addText(
-  item,
-  'div',
-  'API ERROR: ' + error.message,
+  item,'div',
+  'API ERROR: '+error.message,
   'status bad'
  );
 
  $('results').appendChild(item);
 }
 
-// ======================================
-// Main Generator
-// ======================================
+// =====================================
+// SEARCH FUNCTION
+// =====================================
 
-$('length').oninput = () => {
- $('lengthValue').textContent = $('length').value;
+async function scan(name) {
+ $('results').replaceChildren();
+ $('copy').disabled = true;
+ currentName = null;
+
+ $('username').textContent = name;
+ $('status').textContent = 'Searching...';
+ $('status').className = 'status';
+
+ try {
+  const user = await lookup(name);
+
+  if(user) {
+   const card = addTaken(name,user);
+   await enrich(card);
+
+   $('status').textContent = 'ACCOUNT FOUND';
+   $('status').className = 'status bad';
+
+  } else {
+   addAvailable(name);
+
+   currentName = name;
+   $('copy').disabled = false;
+
+   $('status').textContent = 'NOT FOUND - Candidate';
+   $('status').className = 'status good';
+  }
+
+ } catch(error) {
+  addError(name,error);
+
+  $('status').textContent = 'API ERROR';
+  $('status').className = 'status bad';
+ }
+}
+
+// =====================================
+// MANUAL SEARCH
+// =====================================
+
+$('manualScan').onclick = async () => {
+ const name = $('manual').value.trim();
+
+ if(name.length < 3 || name.length > 20) {
+  alert('Username must be 3-20 characters.');
+  return;
+ }
+
+ $('manualScan').disabled = true;
+
+ try {
+  await scan(name);
+ } finally {
+  $('manualScan').disabled = false;
+ }
 };
+
+$('manual').addEventListener('keydown',event => {
+ if(event.key === 'Enter') {
+  $('manualScan').click();
+ }
+});
+
+// =====================================
+// RANDOM GENERATOR
+// =====================================
 
 $('generate').onclick = async () => {
  let chars = '';
 
- if ($('upper').checked) chars += 'I';
- if ($('lower').checked) chars += 'l';
- if ($('one').checked) chars += '1';
+ if($('upper').checked) chars += 'I';
+ if($('lower').checked) chars += 'l';
+ if($('one').checked) chars += '1';
 
- if (!chars) {
+ if(!chars) {
   alert('Select at least one character!');
   return;
  }
 
  const size = Number($('length').value);
-
  const count = Math.max(
   1,
-  Math.min(50, Number($('count').value) || 1)
+  Math.min(50,Number($('count').value)||1)
  );
 
  $('generate').disabled = true;
- $('copy').disabled = true;
+ $('manualScan').disabled = true;
  $('results').replaceChildren();
 
  currentName = null;
+ $('copy').disabled = true;
 
  let taken = 0;
  let notFound = 0;
  let errors = 0;
 
- for (let i = 0; i < count; i++) {
-  const name = randomName(size, chars);
+ for(let i=0;i<count;i++) {
+  const name = randomName(size,chars);
 
   $('username').textContent = name;
   $('status').textContent =
-   `Checking ${i + 1} / ${count}...`;
+   `Checking ${i+1}/${count}...`;
 
   try {
    const user = await lookup(name);
 
-   if (user) {
+   if(user) {
     taken++;
-
-    const card = addTaken(name, user);
+    const card = addTaken(name,user);
     await enrich(card);
 
    } else {
     notFound++;
-
     addAvailable(name);
 
-    if (!currentName) {
+    if(!currentName) {
      currentName = name;
      $('copy').disabled = false;
     }
    }
 
-  } catch (error) {
+  } catch(error) {
    errors++;
-   addError(name, error);
+   addError(name,error);
   }
  }
 
- if (currentName) {
-  $('username').textContent = currentName;
- } else {
-  $('username').textContent = 'No candidate';
- }
+ $('username').textContent =
+  currentName || 'No candidate';
 
  $('status').textContent =
   `TAKEN: ${taken} | NOT FOUND: ${notFound} | ERROR: ${errors}`;
 
  $('status').className =
-  'status ' + (errors ? 'bad' : 'good');
+  'status '+(errors?'bad':'good');
 
  $('generate').disabled = false;
+ $('manualScan').disabled = false;
 };
 
-// ======================================
-// Main Copy Button
-// ======================================
+// =====================================
+// MAIN COPY
+// =====================================
 
 $('copy').onclick = () => {
- if (!currentName) return;
+ if(!currentName) return;
 
  copyText(
   currentName,
   $('copy'),
-  'Copy Available Username'
+  'Copy Username'
  );
 };
 </script>
