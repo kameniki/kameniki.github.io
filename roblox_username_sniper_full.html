@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roblox Username Sniper</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0e14;--panel:#131a24;--line:#263244;--text:#edf3fb;--muted:#91a0b5;--accent:#69a7ff;--green:#56d69a;--red:#ff737d;--yellow:#f4c96b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#17253a 0,#0b0e14 55%);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:26px 14px}main{max-width:850px;margin:auto}
+h1{font-size:25px;margin:0 0 5px}.sub{color:var(--muted);margin:0 0 20px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab{background:#1c293b;color:#cbd8e9;border:1px solid var(--line)}.tab.active{background:var(--accent);color:#07111f;border-color:var(--accent)}
+.panel{background:rgba(19,26,36,.96);border:1px solid var(--line);border-radius:16px;padding:18px;margin:13px 0;box-shadow:0 12px 35px #0003}
+h2{font-size:17px;margin:0 0 14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+label{display:block;color:#c8d4e5;font-size:13px;margin-bottom:7px}
+input[type=number],input[type=text],textarea{width:100%;background:#0c121b;color:var(--text);border:1px solid #34445c;border-radius:9px;padding:11px;font:inherit;outline:none}
+input:focus,textarea:focus{border-color:var(--accent)}.checks{display:flex;flex-wrap:wrap;gap:10px 16px}.checks label{display:flex;align-items:center;gap:7px;margin:0;font-size:14px}input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+button{border:0;border-radius:10px;padding:10px 14px;font:600 14px system-ui;cursor:pointer}.primary{background:var(--accent);color:#07111f}.secondary{background:#263449;color:var(--text);border:1px solid #3a4b63}.danger{background:#49252c;color:#ffdce0;border:1px solid #783943}button:disabled{opacity:.4;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}.status{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px}.track{height:8px;background:#263244;border-radius:20px;overflow:hidden;margin:12px 0}.fill{height:100%;width:0;background:var(--accent);transition:width .15s}
+#results{display:grid;gap:8px;margin-top:12px}.result{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0d141e;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.result strong{font-family:ui-monospace,monospace;overflow-wrap:anywhere}.tag{font-size:11px;color:var(--green);border:1px solid #286b52;border-radius:20px;padding:3px 8px;white-space:nowrap}
+.small{font-size:12px;color:var(--muted)}.notice{border-left:3px solid var(--yellow);padding:9px 12px;background:#282316;color:#e8d8aa;border-radius:5px;font-size:12px;margin-top:12px}
+.hidden{display:none!important}.profile{display:flex;gap:15px;align-items:flex-start;margin-top:15px}.avatar{width:100px;height:100px;border-radius:13px;background:#0c121b;object-fit:cover;border:1px solid var(--line)}.profiledata{min-width:0}.profiledata h3{margin:0 0 3px;font-size:18px}.profiledata p{margin:3px 0;color:#c1ccda;overflow-wrap:anywhere}.pill{display:inline-block;border:1px solid #34445c;border-radius:20px;padding:2px 8px;font-size:11px;color:var(--muted);margin:4px 4px 0 0}
+.error{color:var(--red)}.ok{color:var(--green)}.muted{color:var(--muted)}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.panel{padding:15px}.profile{align-items:center}.avatar{width:82px;height:82px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Roblox Username Sniper</h1>
+<p class="sub">ユーザー名候補の生成・空き状況チェック・プロフィール確認をまとめたツール。</p>
+<div class="panel">
+  <label for="worker">Cloudflare Worker URL</label>
+  <input id="worker" type="text" value="https://roblox-api-proxy.yk8c8kpv49.workers.dev">
+  <p class="small">以前設定したWorkerを使用します。</p>
+</div>
+<nav>
+  <button class="tab active" data-tab="sniper">ID Sniper</button>
+  <button class="tab" data-tab="manual">手動チェック</button>
+</nav>
+
+<section id="sniper" class="tabpage">
+ <div class="panel">
+  <h2>自動スキャン</h2>
+  <div class="grid">
+   <div><label for="length">ユーザー名の文字数（3〜20）</label><input id="length" type="number" min="3" max="20" value="4"></div>
+   <div><label for="delay">チェック間隔（ミリ秒・最低1000）</label><input id="delay" type="number" min="1000" max="30000" step="500" value="1500"></div>
+   <div><label for="limit">最大チェック数</label><input id="limit" type="number" min="1" max="10000" value="100"></div>
+   <div><label>生成方式</label><div class="checks"><label><input type="checkbox" id="confuse" checked> I / l / 1 を中心に生成</label></div><p class="small">ONなら見分けにくい文字を中心に候補を作成します。</p></div>
+  </div>
+  <div style="margin-top:15px"><label>使用する文字（生成方式が通常の場合）</label><div class="checks">
+   <label><input id="lower" type="checkbox" checked> 小文字 a-z</label><label><input id="upper" type="checkbox"> 大文字 A-Z</label><label><input id="digits" type="checkbox" checked> 数字 0-9</label><label><input id="underscore" type="checkbox"> _（最大1個）</label>
+  </div></div>
+  <div class="actions"><button class="primary" id="start">▶ スキャン開始</button><button class="danger" id="stop" disabled>■ 停止</button><button class="secondary" id="clear">結果をクリア</button></div>
+  <div class="notice">APIへの連続アクセスを避けるため1件ずつ確認します。短いIDは競争率が高く、API未検出でも登録可能とは限りません。</div>
+ </div>
+ <div class="panel">
+  <div class="status"><span id="state">待機中</span><span><b id="count">0</b> / <span id="total">100</span> 件</span></div>
+  <div class="track"><div class="fill" id="bar"></div></div>
+  <div class="status"><span>確認中: <b id="current">—</b></span><span>API未検出: <b id="found">0</b> 件</span></div>
+  <div id="results"></div><p class="small" id="empty">API上で未検出の候補がここに表示されます。</p>
+ </div>
+</section>
+
+<section id="manual" class="tabpage hidden">
+ <div class="panel">
+  <h2>ユーザー名を手動チェック</h2>
+  <label for="manualName">Robloxユーザー名（3〜20文字）</label>
+  <input id="manualName" type="text" maxlength="20" placeholder="例: Builderman">
+  <div class="actions"><button class="primary" id="manualCheck">ユーザー名を確認</button><button class="secondary" id="manualRandom">I / l / 1 をランダム生成</button></div>
+  <div id="manualStatus" class="small" style="margin-top:12px">ユーザー名を入力して確認してください。</div>
+  <div id="profile" class="profile hidden">
+   <img id="avatar" class="avatar" alt="Roblox avatar">
+   <div class="profiledata"><h3 id="displayName"></h3><p id="username"></p><p id="userId"></p><p id="created"></p><p id="description"></p></div>
+  </div>
+  <div class="actions"><button id="copyManual" class="secondary" disabled>ユーザー名をコピー</button><button id="openProfile" class="secondary hidden">Robloxプロフィールを開く</button></div>
+  <p class="small">アカウントが見つかった場合はプロフィール情報とアバターを表示します。</p>
+ </div>
+</section>
+<p class="small">「API未検出」は検索APIから一致するユーザーが返らなかったという意味です。禁止語・予約語・登録制限などにより、実際には取得できない場合があります。</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let running=false,checked=0,misses=0,timer=null;
+const seen=new Set();
+const sleep=ms=>new Promise(resolve=>timer=setTimeout(resolve,ms));
+const worker=()=> $("worker").value.trim().replace(/\/+$/,"");
+document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
+ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===btn));
+ document.querySelectorAll(".tabpage").forEach(p=>p.classList.toggle("hidden",p.id!==btn.dataset.tab));
+}));
+function validateName(name){return /^[A-Za-z0-9_]{3,20}$/.test(name)}
+function randomConfusable(n){
+ const chars="IIl1";let s="";
+ for(let i=0;i<n;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+ return s;
+}
+function makeCandidate(n,chars,useUnderscore){
+ let s="";for(let i=0;i<n;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+ if(useUnderscore&&n>=3&&Math.random()<.25){let p=1+Math.floor(Math.random()*(n-2));s=s.slice(0,p)+"_"+s.slice(p+1)}
+ return s;
+}
+async function lookup(name){
+ const r=await fetch(worker()+"/v1/usernames/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usernames:[name],excludeBannedUsers:false})});
+ if(!r.ok)throw Error("HTTP "+r.status);
+ const d=await r.json();if(d.errors)throw Error(d.errors[0]?.message||"Roblox API error");
+ const list=Array.isArray(d.data)?d.data:[];
+ return list.find(u=>String(u.name||"").toLowerCase()===name.toLowerCase())||null;
+}
+async function getProfile(id){
+ const r=await fetch(worker()+"/v1/users/"+encodeURIComponent(id));
+ if(!r.ok)throw Error("プロフィール取得失敗 (HTTP "+r.status+")");
+ return await r.json();
+}
+function update(){let lim=Number($("limit").value)||1;$("count").textContent=checked;$("total").textContent=lim;$("found").textContent=misses;$("bar").style.width=Math.min(100,checked/lim*100)+"%"}
+function addResult(name){
+ const row=document.createElement("div");row.className="result";
+ const label=document.createElement("strong");label.textContent=name;
+ const right=document.createElement("div");right.style.display="flex";right.style.gap="8px";right.style.alignItems="center";
+ const tag=document.createElement("span");tag.className="tag";tag.textContent="API未検出";
+ const copy=document.createElement("button");copy.className="secondary";copy.textContent="コピー";copy.onclick=()=>copyText(name,copy);
+ right.append(tag,copy);row.append(label,right);$("results").prepend(row);$("empty").hidden=true;
+}
+async function copyText(value,button){
+ try{await navigator.clipboard.writeText(value)}catch{const t=document.createElement("textarea");t.value=value;document.body.append(t);t.select();document.execCommand("copy");t.remove()}
+ if(button){let old=button.textContent;button.textContent="コピー済み";setTimeout(()=>button.textContent=old,1000)}
+}
+async function start(){
+ const n=Number($("length").value),delay=Math.max(1000,Number($("delay").value)||1500),limit=Number($("limit").value);
+ let chars="";if($("lower").checked)chars+="abcdefghijklmnopqrstuvwxyz";if($("upper").checked)chars+="ABCDEFGHIJKLMNOPQRSTUVWXYZ";if($("digits").checked)chars+="0123456789";
+ if(!Number.isInteger(n)||n<3||n>20)return alert("文字数は3〜20で指定してください。");
+ if(!Number.isInteger(limit)||limit<1||limit>10000)return alert("最大チェック数は1〜10000で指定してください。");
+ if(!$("confuse").checked&&!chars)return alert("使用する文字を選択してください。");
+ if(!worker().startsWith("https://"))return alert("Worker URLを確認してください。");
+ running=true;checked=0;misses=0;seen.clear();$("results").replaceChildren();$("empty").hidden=false;
+ $("start").disabled=true;$("stop").disabled=false;$("state").textContent="スキャン中…";update();
+ try{
+  while(running&&checked<limit){
+   let name;do{name=$("confuse").checked?randomConfusable(n):makeCandidate(n,chars,$("underscore").checked)}while(seen.has(name));seen.add(name);
+   $("current").textContent=name;
+   const found=await lookup(name);checked++;
+   if(!found){misses++;addResult(name)}
+   update();if(running&&checked<limit)await sleep(delay);
+  }
+  $("state").textContent=running?"完了":"停止しました";
+ }catch(e){$("state").textContent="エラー: "+e.message}
+ finally{running=false;clearTimeout(timer);$("start").disabled=false;$("stop").disabled=true;$("current").textContent="—";update()}
+}
+$("start").onclick=start;
+$("stop").onclick=()=>{running=false;clearTimeout(timer);$("state").textContent="停止処理中…"};
+$("clear").onclick=()=>{if(running)return;$("results").replaceChildren();$("empty").hidden=false;misses=0;update()};
+$("manualRandom").onclick=()=>{$("manualName").value=randomConfusable( Math.max(3,Math.min(20,Number($("length").value)||8)) );$("manualStatus").textContent="候補を生成しました。確認ボタンで検索できます。"};
+$("manualCheck").onclick=async()=>{
+ const name=$("manualName").value.trim();$("profile").classList.add("hidden");$("openProfile").classList.add("hidden");$("copyManual").disabled=true;
+ if(!validateName(name)){ $("manualStatus").innerHTML='<span class="error">3〜20文字の半角英数字・_で入力してください。</span>';return}
+ if(!worker().startsWith("https://")){$("manualStatus").textContent="Worker URLを確認してください。";return}
+ $("manualCheck").disabled=true;$("manualStatus").textContent="Roblox APIに問い合わせ中…";
+ try{
+  const user=await lookup(name);
+  if(!user){$("manualStatus").innerHTML='<span class="ok">API未検出：一致するユーザーは見つかりませんでした。</span> 登録可能とは限りません。';$("copyManual").disabled=false;$("copyManual").onclick=()=>copyText(name,$("copyManual"));return}
+  const p=await getProfile(user.id);
+  $("displayName").textContent=p.displayName||p.name||name;
+  $("username").textContent="@"+(p.name||user.name||name);
+  $("userId").textContent="User ID: "+p.id;
+  $("created").textContent="作成日: "+(p.created?new Date(p.created).toLocaleString("ja-JP"):"不明");
+  $("description").textContent=p.description||"説明なし";
+  $("avatar").src=worker()+"/avatar-image/"+encodeURIComponent(p.id);
+  $("profile").classList.remove("hidden");
+  $("manualStatus").innerHTML='<span class="ok">ユーザーが見つかりました。</span>';
+  $("copyManual").disabled=false;$("copyManual").onclick=()=>copyText(p.name||name,$("copyManual"));
+  $("openProfile").classList.remove("hidden");$("openProfile").onclick=()=>window.open("https://www.roblox.com/users/"+encodeURIComponent(p.id)+"/profile","_blank","noopener");
+ }catch(e){$("manualStatus").innerHTML='<span class="error">APIエラー: '+String(e.message).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))+'</span>'}
+ finally{$("manualCheck").disabled=false}
+};
+</script>
+</body>
+</html>
