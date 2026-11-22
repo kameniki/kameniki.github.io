@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Random Roblox Launcher</title>
+<style>
+body {
+  background: #111;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: grid;
+  place-items: center;
+  min-height: 90vh;
+}
+main { text-align: center; }
+button {
+  background: #00a2ff;
+  color: white;
+  border: 0;
+  padding: 14px 28px;
+  border-radius: 9px;
+  font-size: 16px;
+  cursor: pointer;
+}
+#id { color: #aaa; margin: 20px; }
+</style>
+</head>
+<body>
+<main>
+  <h2>Random Roblox Launcher</h2>
+  <p id="id">Ready</p>
+  <button onclick="launch()">Generate & Play</button>
+</main>
+
+<script>
+function launch() {
+  // ランダムなPlaceIdを生成
+  const placeId = Math.floor(
+    Math.random() * 9000000000
+  ) + 1000000000;
+
+  document.getElementById("id").textContent =
+    "Place ID: " + placeId;
+
+  // Robloxクライアントを起動
+  location.href =
+    "roblox://experiences/start?placeId=" + placeId;
+}
+</script>
+</body>
+</html>
